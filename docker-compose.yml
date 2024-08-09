@@ -1,0 +1,68 @@
+networks:
+  demo-net:
+
+services:
+  pyspark:
+    build: .
+    environment:
+      JUPYTER_ENABLE_LAB: "yes"
+    ports:
+      - "8888:8888"
+    networks:
+      - demo-net
+    volumes:
+      - ./work:/home/jovyan/work
+      - ./data:/home/jovyan/data
+    depends_on:
+      - minio
+    env_file:
+      - .env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - capabilities: [gpu]
+
+  postgres:
+    image: postgres:12-alpine
+    environment:
+      POSTGRES_USERNAME: postgres
+      POSTGRES_PASSWORD: postgres1234
+      POSTGRES_DB: bakery
+    ports:
+      - "5432:5432/tcp"
+    networks:
+      - demo-net
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  adminer:
+    image: adminer:latest
+    ports:
+      - "8080:8080/tcp"
+    networks:
+      - demo-net
+    deploy:
+      restart_policy:
+        condition: on-failure
+
+  minio:
+    image: minio/minio:latest
+    container_name: minio
+    environment:
+      MINIO_ROOT_USER: ROOTUSER
+      MINIO_ROOT_PASSWORD: ROOTPASS123
+    ports:
+      - "9000:9000" # Porta principal para acessar o MinIO
+      - "9001:9001" # Porta para o console do MinIO
+    command: server /data --console-address ":9001" # Configuração do comando
+    networks:
+      - demo-net
+    volumes:
+      - minio_data:/data
+
+volumes:
+  minio_data:
